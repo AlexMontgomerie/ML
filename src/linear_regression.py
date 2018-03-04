@@ -109,23 +109,81 @@ def visualise_data(x,y):
 def get_cov_matrix(x):
   return np.cov(np.transpose(train_x))
 
+def normalise_y(data):
+  mean = np.mean(data)
+  std  = np.std(data)
+  normaliser = lambda x: (x-mean)/std
+  vfunc = np.vectorize(normaliser)
+  return vfunc(data)
+  
+def un_normalise_y(data):
+  mean  = np.mean(data)
+  std   = np.std(data)
+  normaliser = lambda x: x*std+mean
+  vfunc = np.vectorize(normaliser)
+  return vfunc(data)
+
+def svd_reduction(data):
+  u,s,vh = np.linalg.svd(data,full_matrices=False)
+
+  #only take largest eigenvalue
+  eig_max = np.max(s)
+  
+  print(eig_max)
+  #print(s)
+
+  for i in range(len(s)):
+    if s[i] !=eig_max:
+      s[i] = 0;
+
+  #print(np.diag(s))
+  
+  print(u.shape)
+  print(np.diag(s).shape)
+  print(vh.shape)
+
+  data =  np.matmul(np.matmul(u,np.diag(s)),vh)
+  
+  print(data)
+  return data
+ 
 def sk_lin_regr(data):
 
-  data = normalise(data)
+  #data = normalise(data) 
 
   train_x,train_y,test_x,test_y,val_x,val_y = split_data(data)
 
-  regr = linear_model.LinearRegression(fit_intercept=False) 
+  train_x = svd_reduction(train_x)
+  val_x   = svd_reduction(val_x)
+  #train_y = normalise_y(train_y)
+
+  regr = linear_model.LinearRegression(fit_intercept=True,normalize=True) 
 
   regr.fit(train_x,train_y)
 
   pred_y = regr.predict(val_x)
+  #pred_y = un_normalise_y(pred_y)
 
   pred_y = classify(pred_y)
 
-  print(np.max(pred_y))
+  print("linear regression accuracy: {}",accuracy_score(val_y,pred_y))
+
+def add_bias(data):
+  for i in range(len(data)):
+    data[i].extend(1)
+  return data
+
+def my_lin_regr(data):
+  data = normalise(data)
+  train_x,train_y,test_x,test_y,val_x,val_y = split_data(data)
   
-  print(accuracy_score(val_y,pred_y))
+  train_x = add_bias(train_x)
+  val_x   = add_bias(val_x)
+    
+  weights = fit(train_x,train_y)
+  pred_y = predict(val_x,train_y,weights)
+  
+  print("linear regression accuracy: {}",accuracy_score(val_y,pred_y))
  
 if __name__=="__main__":
   data = get_data()
