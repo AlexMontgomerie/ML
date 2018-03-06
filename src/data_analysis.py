@@ -69,13 +69,42 @@ def get_data_output_correlation_plot(data,fig_num):
   plt.bar(x_axis,corr)
   return
 
+def classify(y):
+  for i in range(len(y)):
+    for j in range(11):
+      if y[i] > (j-0.5) and y[i] <= (j+0.5):
+        y[i] = j
+    if y[i] < 0:
+        y[i] = 0
+    if y[i] > 10:
+        y[i] = 10
+  return y
+
+def get_lin_regr(data):
+  data = np.delete(data,(0),axis=0)
+  x,y = np.hsplit(data,[NUM_FEATURE])
+  x = normalise_all(x)
+   
+  ones = np.array([[1] for i in range(len(y))])
+  x = np.concatenate((x,ones),axis=1)
+  
+  pinv_x = np.linalg.pinv(x)
+  weights =  np.matmul(pinv_x, y)
+  pred_y = np.dot(x,weights)
+  pred_y = classify(pred_y)
+
+  print("linear regression accuracy: {}",accuracy_score(y,pred_y))
+
 
 if __name__=="__main__":
   data = get_data()
+  get_lin_regr(data)
+  '''
   print(data.shape)
   get_correlation_matrix(data,1)
   get_data_plot(data,2)
   get_data_output_correlation_plot(data,3)
+  '''
 
   plt.show()
 
