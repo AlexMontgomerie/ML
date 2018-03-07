@@ -3,12 +3,14 @@ from sklearn import linear_model
 from sklearn.metrics import accuracy_score
 import numpy as np
 import seaborn as sns
+from sklearn.svm import SVR
 
 NUM_FEATURE = 11
 
 def get_data():
   wine_data = np.genfromtxt('../data/winequality-red.csv',delimiter=';')
-  return np.delete(wine_data,(0),axis=0)
+  wine_data = np.delete(wine_data,(0),axis=0)
+  return np.random.shuffle(wine_data)
 
 #######################
 
@@ -21,38 +23,18 @@ def normalise_all(data):
     data[:,i] = normalise(data[:,i])
   return data
 
-def normalise_single(data):
-  data = np.transpose(data)
-
-  #remove bias, and only leave unit variance
-  mean  = np.mean(data)
-  std   = np.std(data)
-  normaliser = lambda x : (x-mean)/std
-  vfunc = np.vectorize(normaliser)
-  #update with normalised feature
-  data = vfunc(data)
-
-  return np.transpose(data)
-
-
 ######################
 
 ### Split Training, Test and Validation sets ###
 def split_data(data,test_split=0.1,val_split=0.1,train_split=0.8):
   #train,test,val
 
-  print(np.split(data, [int(train_split*data.shape[0]),int(test_split*data.shape[0]),int(val_split*data.shape[0])]))
-  train,test,val = np.split(data, [int(train_split*data.shape[0]),int(test_split*data.shape[0]),int(val_split*data.shape[0])])
-  
-  print(test)
+  train,test = np.split(data, [int(train_split*data.shape[0])])
   
   train_x,train_y = np.hsplit(train,[NUM_FEATURE])
   test_x,test_y   = np.hsplit(test, [NUM_FEATURE])
-  val_x,val_y     = np.hsplit(val,  [NUM_FEATURE])
   
-  return train_x,train_y,test_x,test_y,val_x,val_y
-#sns.distplot(np.transpose(train_x[:,0]))
-#sns.distplot(np.transpose(train_y))
+  return train_x,train_y,test_x,test_y
 
 ################################################
 
@@ -62,10 +44,44 @@ def fit(data_x,data_y):
   pinv_x = np.linalg.pinv(data_x)
   return  np.matmul(pinv_x, data_y)
 
-#########################################
+def add_bias(x):
+  ones = np.array([[1] for i in range(len(x[:,0]))])
+  return np.concatenate((x,ones),axis=1)
 
 
-### Get discrete values for output ###
+def my_lin_regr(data):
+  
+  train_x,train_y,test_x,test_y = split_data(data)
+  
+  #normalise all x
+  train_x = normalise_all(train_x)
+  test_x  = normalise_all(test_x)
+
+  train_x = train_x[:,[1,10]]
+  test_x  = test_x[:,[1,10]]
+
+  #bias all x
+  train_x = add_bias(train_x)   
+  test_x  = add_bias(test_x)   
+
+  #get learned weight
+  weights = fit(train_x,train_y)
+
+  pred_y  = predict(test_x,weights)
+
+  print("(my) linear regression accuracy: {}",accuracy_score(test_y,pred_y))
+
+def bin_classify_y(y,val):
+  
+  tmp = np.array([[0] for i in range(len(y))])
+
+  for i in range(len(y)):
+    if y[i][0] >= val:
+      tmp[i][0] =  1
+    else:
+      tmp[i][0] = -1
+  
+  return tmp
 
 def predict(x,weights):
   y = np.dot(x,weights)
@@ -82,123 +98,58 @@ def classify(y):
         y[i] = 10
   return y
 
-def visualise_data(x,y):
-  sz = np.array([0.2 for x in range(len(y))])
-  for i in range(NUM_FEATURE):
-    plt.scatter(np.transpose(x[:,i]),y,sz)  
-  return
-
-def get_cov_matrix(x):
-  return np.cov(np.transpose(train_x))
-
-def normalise_y(data):
-  mean = np.mean(data)
-  std  = np.std(data)
-  normaliser = lambda x: (x-mean)/std
-  vfunc = np.vectorize(normaliser)
-  return vfunc(data)
-  
-def un_normalise_y(data):
-  mean  = np.mean(data)
-  std   = np.std(data)
-  normaliser = lambda x: x*std+mean
-  vfunc = np.vectorize(normaliser)
-  return vfunc(data)
-
 def svd_reduction(data):
   u,s,vh = np.linalg.svd(data,full_matrices=False)
-
-  #only take largest eigenvalue
-  eig_max = np.max(s)
-  
-  print(eig_max)
-  #print(s)
-
-  for i in range(len(s)):
-    if s[i] !=eig_max:
-      s[i] = 0;
-
-  #print(np.diag(s))
-  
-  print(u.shape)
-  print(np.diag(s).shape)
-  print(vh.shape)
-
   data =  np.matmul(np.matmul(u,np.diag(s)),vh)
-  
-  print(data)
   return data
  
+#########################################
+
 def sk_lin_regr(data):
 
   #data = normalise(data) 
 
-  train_x,train_y,test_x,test_y,val_x,val_y = split_data(data)
-
-  train_x = svd_reduction(train_x)
-  val_x   = svd_reduction(val_x)
-  #train_y = normalise_y(train_y)
+  train_x,train_y,test_x,test_y = split_data(data)
 
   regr = linear_model.LinearRegression(fit_intercept=True,normalize=True) 
 
   regr.fit(train_x,train_y)
 
-  pred_y = regr.predict(val_x)
-  #pred_y = un_normalise_y(pred_y)
+  pred_y = regr.predict(test_x)
 
   pred_y = classify(pred_y)
 
-  print("linear regression accuracy: {}",accuracy_score(val_y,pred_y))
+  print("(sk) linear regression accuracy: {}",accuracy_score(test_y,pred_y))
 
-def add_bias(x):
-  ones = np.array([[1] for i in range(len(x.shape(0)))])
-  return np.concatenate((x,ones),axis=1)
+def sk_svm(data):
+  #split the data  
+  train_x,train_y,test_x,test_y = split_data(data)
 
-def my_lin_regr(data):
-  data = normalise(data)
-  train_x,train_y,test_x,test_y,val_x,val_y = split_data(data)
-  
-  train_x = add_bias(train_x)
-  val_x   = add_bias(val_x)
-    
-  weights = fit(train_x,train_y)
-  pred_y = predict(val_x,train_y,weights)
-  
-  print("linear regression accuracy: {}",accuracy_score(val_y,pred_y))
-
-def my_lin_regr(data):
-  
-  train_x,train_y,test_x,test_y,val_x,val_y = split_data(data)
-  
   #normalise all x
   train_x = normalise_all(train_x)
   test_x  = normalise_all(test_x)
-  val_x   = normalise_all(val_x)
 
-  print('train_x shape: ',train_x.shape)
-  print('test_x shape:  ',test_x.shape)
-  print('val_x shape:   ',val_x.shape)
+  print(bin_classify_y(test_y,6))
 
-  #bias all x
-  train_x = add_bias(train_x)   
-  test_x  = add_bias(test_x)   
-  val_x   = add_bias(val_x)   
+  #define SVR 
+  clf = SVR(C=1.0, epsilon=0.2)
+  clf.fit(train_x,train_y)
 
-  #get learned weight
-  weights = fit(train_x,train_y)
+  #predict y using SVC  
+  pred_y = clf.predict(test_x)
 
-  pred_y  = predict(val_x,weights)
+  pred_y = classify(pred_y)
 
-  print("linear regression accuracy: {}",accuracy_score(val_y,pred_y))
+  print("(sk) support vector machine for regression accuracy: {}",accuracy_score(test_y,pred_y))
 
+  return
+
+##### Validation #####
+
+#TODO: create K-fold cross-validation function
 
 if __name__=="__main__":
   data = get_data()
-  #data = normalise(data)
-  #train_x,train_y,test_x,test_y,val_x,val_y = split_data(data)
-  #weights = fit(train_x,train_y)
-  #predict_y = predict(val_x,train_y,weights)
-
-  #sk_lin_regr(data)
+  sk_lin_regr(data)
   my_lin_regr(data)
-  #plt.show()
+  #sk_svm(data)
