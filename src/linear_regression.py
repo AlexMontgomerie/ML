@@ -27,7 +27,7 @@ def normalise_all(data):
 ######################
 
 ### Split Training, Test and Validation sets ###
-def split_data(data,test_split=0.1,val_split=0.1,train_split=0.8):
+def split_data(data,train_split=0.8):
   #train,test,val
 
   train,test = np.split(data, [int(train_split*data.shape[0])])
@@ -36,6 +36,25 @@ def split_data(data,test_split=0.1,val_split=0.1,train_split=0.8):
   test_x,test_y   = np.hsplit(test, [NUM_FEATURE])
   
   return train_x,train_y,test_x,test_y
+
+##### Loss Functions #####
+def square_loss(y,pred_y):
+  return ((y-pred_y)**2).mean()
+  #N = len(y)
+  #error_sum = 0
+  #for i in range(N):
+  #  error_sum += (y[i]-pred_y[i])**2
+  #return error/N
+  
+def identity_loss(y,pred_y):
+  N = len(y)
+  error_sum = 0
+  for i in range(N):
+    if y[i] != pred_y[i]:
+      error_sum += 1
+  return error_sum/N
+
+##########################
 
 ################################################
 class lin_regr:
@@ -66,17 +85,15 @@ class lin_regr:
     self.train_x = self.add_bias(self.train_x)   
     self.test_x  = self.add_bias(self.test_x)   
 
-    self.fit()
-
-  def fit(self,l=0.001):
+  def fit(self,x,y,l=0.001):
     if self.reguliser=='ridge':
-      tmp = np.matmul(self.train_x.T,self.train_x) + np.diag([l for i in range(NUM_FEATURE+1)])
+      tmp = np.matmul(x.T,x) + np.diag([l for i in range(NUM_FEATURE+1)])
       tmp = np.linalg.pinv(tmp)
-      tmp = np.matmul(tmp,self.train_x.T)
-      self.weights = np.matmul(tmp,self.train_y)
+      tmp = np.matmul(tmp,x.T)
+      self.weights = np.matmul(tmp,y)
     else:
-      pinv_x = np.linalg.pinv(self.train_x)
-      self.weights = np.matmul(pinv_x,self.train_y)
+      pinv_x = np.linalg.pinv(x)
+      self.weights = np.matmul(pinv_x,y)
 
   def add_bias(self,x):
     ones = np.array([[1] for i in range(len(x[:,0]))])
@@ -102,12 +119,20 @@ class lin_regr:
     data = np.concatenate((self.train_x,self.train_y),axis=1)
     kf = KFold(n_splits=k)
 
+    error_sum = 0
     for train,test in kf.split(data):
       train_data  = np.array(data)[train]  
       test_data   = np.array(data)[test]  
+      train_x, train_y  = np.hsplit(train_data,[NUM_FEATURE+1])
+      test_x , test_y   = np.hsplit(test_data,[NUM_FEATURE+1])
+      self.fit(train_x,train_y)
+      pred_y = self.predict(test_x)
+      pred_y = self.classify(pred_y) 
+      error_sum += loss(test_y,pred_y)
 
-      
- 
+    print("cross validation error: ",error_sum/k)
+    return error_sum/k    
+
 
 ### Compute Linear Regression Weights ###
 def fit(x,y,ridge=False,l=0.001):
@@ -223,12 +248,6 @@ def sk_svm(data):
 
 ##### Validation #####
 
-##### Loss Functions #####
-def square_loss(x,y,weights):
-  pass
-
-##########################
-
 #TODO: create K-fold cross-validation function
 def cross_validation(x,y,weights,k=10,loss=square_loss):
   #split into K folds
@@ -236,7 +255,7 @@ def cross_validation(x,y,weights,k=10,loss=square_loss):
   kf = KFold(n_splits=k)
 
   for train,test in kf.split(data):
-    train_data = np  
+    train_data = np.array(data)[train]  
 
 if __name__=="__main__":
   data = get_data()
@@ -244,4 +263,6 @@ if __name__=="__main__":
   my_lin_regr(data)
   #sk_svm(data)
   tmp = lin_regr(data,'ridge')
+  tmp.cross_validation(loss=identity_loss)
+
   train_x,train_y,test_x,test_y = split_data(data)
