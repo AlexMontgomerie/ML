@@ -7,6 +7,8 @@ from sklearn.svm import SVR
 from sklearn.model_selection import KFold
 from sklearn.metrics import mean_absolute_error
 
+np.random.seed(0)
+
 NUM_FEATURE = 12
 
 def get_data(red=True):
@@ -235,6 +237,7 @@ def sk_lin_regr(data):
   regr.fit(train_x,train_y)
   pred_y = regr.predict(test_x)
   print("(sk) linear regression MAE: ",mean_absolute_error(test_y,pred_y))
+  return regr
 
 def sk_lasso_regr(data,alpha=0.1):
   #data = normalise(data) 
@@ -243,6 +246,7 @@ def sk_lasso_regr(data,alpha=0.1):
   regr.fit(train_x,train_y)
   pred_y = regr.predict(test_x)
   print("(sk) linear regression Lasso MAE: ",mean_absolute_error(test_y,pred_y))
+  return regr
 
 def sk_ridge_regr(data,alpha=0.1):
   #data = normalise(data) 
@@ -266,6 +270,7 @@ def sk_ridge_regr(data,alpha=0.1):
   '''
   pred_y = regr.predict(test_x)
   print("(sk) linear regression Ridge MAE: ",mean_absolute_error(test_y,pred_y))
+  return regr
 
 def sk_elastic_regr(data,alpha=0.1, l1_ratio=0.5):
   #data = normalise(data) 
@@ -275,6 +280,7 @@ def sk_elastic_regr(data,alpha=0.1, l1_ratio=0.5):
   pred_y = regr.predict(test_x)
   pred_y = classify(pred_y)
   print("(sk) linear regression Elastic Net MAE: ",mean_absolute_error(test_y,pred_y))
+  return regr
 
 def sk_svm(data):
   #split the data  
