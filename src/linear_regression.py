@@ -9,7 +9,7 @@ from sklearn.metrics import mean_absolute_error
 
 NUM_FEATURE = 12
 
-def get_data(red=False):
+def get_data(red=True):
   #get red wine data  
   red_data = np.genfromtxt('../data/winequality-red.csv',delimiter=';')
   red_data = np.delete(red_data,(0),axis=0)
@@ -250,12 +250,12 @@ def sk_ridge_regr(data,alpha=0.1):
   regr = linear_model.Ridge(alpha) 
   regr.fit(train_x,train_y)
   pred_y = regr.predict(train_x)
-  
+  ''' 
   #tuning hyperparameter
-  lmbda = 0.1
+  lmbda = 50 
   prev_err = cross_validation(train_x,train_y,regr);
   print("Previous ERROR: ",prev_err)
-  alpha = 10000 
+  alpha += lmbda*0.00001 
   for i in range(200):
     regr = linear_model.Ridge(alpha) 
     regr.fit(train_x,train_y)
@@ -263,7 +263,7 @@ def sk_ridge_regr(data,alpha=0.1):
     err_gradient = curr_err - prev_err
     print("Error: ",curr_err,", Alpha: ",alpha,", gradient: ",err_gradient)
     alpha = alpha - lmbda*err_gradient
-  
+  '''
   pred_y = regr.predict(test_x)
   print("(sk) linear regression Ridge MAE: ",mean_absolute_error(test_y,pred_y))
 
@@ -317,21 +317,20 @@ def cross_validation(train_x,train_y,model,k=10,loss=square_loss):
     pred_y = model.predict(test_x)
     error_sum += loss(test_y,pred_y)
 
-  print("cross validation error: ",error_sum/k)
   return error_sum/k    
 
 if __name__=="__main__":
   data = get_data()
   
-  sk_ridge_regr(data,0.0001)
+  #sk_ridge_regr(data,0.05)
 
-  '''  
+    
   for i in range(20):
     alpha = pow(10,-(i-5))
     print("Alpha: ", alpha)
     #sk_lasso_regr(data,alpha)
     sk_ridge_regr(data,alpha)
-  
+  '''
   print("\n ////////////////////// \n")
 
   for i in range(20):
