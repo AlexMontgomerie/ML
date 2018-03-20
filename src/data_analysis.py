@@ -9,8 +9,9 @@ from sklearn.preprocessing import StandardScaler
 NUM_FEATURE = 11
 
 def get_data():
-  wine_data = np.genfromtxt('../data/winequality-red.csv',delimiter=';')
+  wine_data = np.genfromtxt('../data/winequality-white.csv',delimiter=';')
   #return np.delete(wine_data,(0),axis=0)
+  
   return wine_data
 
 def normalise(data):
@@ -108,12 +109,13 @@ def remove_outliers(data):
 if __name__=="__main__":
   data = get_data()
   #get_lin_regr(data)
-  
+  print(len(data))
+  '''  
   get_correlation_matrix(data,1)
   get_data_plot(data,2)
   get_data_output_correlation_plot(data,3)
   get_output_dist(data,4)  
   get_feature_dist(data,5)
-
+  '''
   plt.show()
 

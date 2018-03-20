@@ -5,13 +5,32 @@ import numpy as np
 import seaborn as sns
 from sklearn.svm import SVR
 from sklearn.model_selection import KFold
+from sklearn.metrics import mean_absolute_error
 
-NUM_FEATURE = 11
+NUM_FEATURE = 12
 
-def get_data():
-  wine_data = np.genfromtxt('../data/winequality-red.csv',delimiter=';')
-  return np.delete(wine_data,(0),axis=0)
-  #return np.random.shuffle(wine_data)
+def get_data(red=False):
+  #get red wine data  
+  red_data = np.genfromtxt('../data/winequality-red.csv',delimiter=';')
+  red_data = np.delete(red_data,(0),axis=0)
+  red_feature = np.array([[1 for i in range(red_data.shape[0])]])
+  red_y = np.array([red_data[:,11]])
+  red_data = np.append(red_data[:,0:11],red_feature.T,axis=1)
+  red_data = np.append(red_data,red_y.T,axis=1)
+  if red:
+    return red_data
+  #get white wine data
+  white_data = np.genfromtxt('../data/winequality-white.csv',delimiter=';')
+  white_data = np.delete(white_data,(0),axis=0)
+  white_feature = np.array([[-1 for i in range(white_data.shape[0])]])
+  white_y = np.array([white_data[:,11]])
+  white_data = np.append(white_data[:,0:11],white_feature.T,axis=1)
+  white_data = np.append(white_data,white_y.T,axis=1)
+  #combine the 2
+  data = np.append(red_data,white_data,axis=0)
+  np.random.shuffle(data)
+  return data
+
 
 #######################
 
@@ -45,6 +64,8 @@ def square_loss(y,pred_y):
   #for i in range(N):
   #  error_sum += (y[i]-pred_y[i])**2
   #return error/N
+def mae_loss(y,pred_y):
+  return (y-pred_y).mean()
   
 def identity_loss(y,pred_y):
   N = len(y)
@@ -208,20 +229,52 @@ def svd_reduction(data):
 #########################################
 
 def sk_lin_regr(data):
-
   #data = normalise(data) 
-
   train_x,train_y,test_x,test_y = split_data(data)
-
-  regr = linear_model.LinearRegression(fit_intercept=True,normalize=True) 
-
+  regr = linear_model.LinearRegression() 
   regr.fit(train_x,train_y)
-
   pred_y = regr.predict(test_x)
+  print("(sk) linear regression MAE: ",mean_absolute_error(test_y,pred_y))
 
+def sk_lasso_regr(data,alpha=0.1):
+  #data = normalise(data) 
+  train_x,train_y,test_x,test_y = split_data(data)
+  regr = linear_model.Lasso(alpha) 
+  regr.fit(train_x,train_y)
+  pred_y = regr.predict(test_x)
+  print("(sk) linear regression Lasso MAE: ",mean_absolute_error(test_y,pred_y))
+
+def sk_ridge_regr(data,alpha=0.1):
+  #data = normalise(data) 
+  train_x,train_y,test_x,test_y = split_data(data)
+  regr = linear_model.Ridge(alpha) 
+  regr.fit(train_x,train_y)
+  pred_y = regr.predict(train_x)
+  
+  #tuning hyperparameter
+  lmbda = 0.1
+  prev_err = cross_validation(train_x,train_y,regr);
+  print("Previous ERROR: ",prev_err)
+  alpha = 10000 
+  for i in range(200):
+    regr = linear_model.Ridge(alpha) 
+    regr.fit(train_x,train_y)
+    curr_err = cross_validation(train_x,train_y,regr);
+    err_gradient = curr_err - prev_err
+    print("Error: ",curr_err,", Alpha: ",alpha,", gradient: ",err_gradient)
+    alpha = alpha - lmbda*err_gradient
+  
+  pred_y = regr.predict(test_x)
+  print("(sk) linear regression Ridge MAE: ",mean_absolute_error(test_y,pred_y))
+
+def sk_elastic_regr(data,alpha=0.1, l1_ratio=0.5):
+  #data = normalise(data) 
+  train_x,train_y,test_x,test_y = split_data(data)
+  regr = linear_model.ElasticNet(alpha, l1_ratio) 
+  regr.fit(train_x,train_y)
+  pred_y = regr.predict(test_x)
   pred_y = classify(pred_y)
-
-  print("(sk) linear regression accuracy: {}",accuracy_score(test_y,pred_y))
+  print("(sk) linear regression Elastic Net MAE: ",mean_absolute_error(test_y,pred_y))
 
 def sk_svm(data):
   #split the data  
@@ -249,20 +302,48 @@ def sk_svm(data):
 ##### Validation #####
 
 #TODO: create K-fold cross-validation function
-def cross_validation(x,y,weights,k=10,loss=square_loss):
+def cross_validation(train_x,train_y,model,k=10,loss=square_loss):
   #split into K folds
-  data = np.concatenate((x,y),axis=1)
+  data = np.concatenate((train_x,train_y),axis=1)
   kf = KFold(n_splits=k)
 
+  error_sum = 0
   for train,test in kf.split(data):
-    train_data = np.array(data)[train]  
+    train_data  = np.array(data)[train]  
+    test_data   = np.array(data)[test]  
+    train_x, train_y  = np.hsplit(train_data,[NUM_FEATURE])
+    test_x , test_y   = np.hsplit(test_data,[NUM_FEATURE])
+    model.fit(train_x,train_y)
+    pred_y = model.predict(test_x)
+    error_sum += loss(test_y,pred_y)
+
+  print("cross validation error: ",error_sum/k)
+  return error_sum/k    
 
 if __name__=="__main__":
   data = get_data()
-  #sk_lin_regr(data)
-  my_lin_regr(data)
-  #sk_svm(data)
-  tmp = lin_regr(data,'ridge')
-  tmp.cross_validation(loss=identity_loss)
+  
+  sk_ridge_regr(data,0.0001)
 
-  train_x,train_y,test_x,test_y = split_data(data)
+  '''  
+  for i in range(20):
+    alpha = pow(10,-(i-5))
+    print("Alpha: ", alpha)
+    #sk_lasso_regr(data,alpha)
+    sk_ridge_regr(data,alpha)
+  
+  print("\n ////////////////////// \n")
+
+  for i in range(20):
+    for j in range(10):
+      alpha = pow(10,-i)
+      l1_ratio = 0.1*(j+1) 
+      print("Alpha: ", alpha,", L1 Ratio: ",l1_ratio)
+      sk_elastic_regr(data,alpha,l1_ratio)
+  '''
+  #my_lin_regr(data)
+  #sk_svm(data)
+  #tmp = lin_regr(data,'ridge')
+  #tmp.cross_validation(loss=identity_loss)
+  
+  
