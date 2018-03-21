@@ -52,10 +52,19 @@ def split_data(data,train_split=0.8):
   #train,test,val
 
   train,test = np.split(data, [int(train_split*data.shape[0])])
-  
+
   train_x,train_y = np.hsplit(train,[NUM_FEATURE])
   test_x,test_y   = np.hsplit(test, [NUM_FEATURE])
-  
+ 
+  for i in range(NUM_FEATURE):
+    mean  = train_x[:,i].mean()
+    std   = train_x[:,i].std() 
+    
+    #normalise training data
+    
+    #normalise test data  
+    test[:,i] 
+ 
   return train_x,train_y,test_x,test_y
 
 ##### Loss Functions #####
@@ -233,6 +242,9 @@ def svd_reduction(data):
 def sk_lin_regr(data):
   #data = normalise(data) 
   train_x,train_y,test_x,test_y = split_data(data)
+
+  print(train_x[0])
+
   regr = linear_model.LinearRegression() 
   regr.fit(train_x,train_y)
   pred_y = regr.predict(test_x)
@@ -327,16 +339,17 @@ def cross_validation(train_x,train_y,model,k=10,loss=square_loss):
 
 if __name__=="__main__":
   data = get_data()
-  
+
+  model = sk_lin_regr(data) 
   #sk_ridge_regr(data,0.05)
 
-    
+'''   
   for i in range(20):
     alpha = pow(10,-(i-5))
     print("Alpha: ", alpha)
     #sk_lasso_regr(data,alpha)
     sk_ridge_regr(data,alpha)
-  '''
+
   print("\n ////////////////////// \n")
 
   for i in range(20):
@@ -345,10 +358,10 @@ if __name__=="__main__":
       l1_ratio = 0.1*(j+1) 
       print("Alpha: ", alpha,", L1 Ratio: ",l1_ratio)
       sk_elastic_regr(data,alpha,l1_ratio)
-  '''
+
   #my_lin_regr(data)
   #sk_svm(data)
   #tmp = lin_regr(data,'ridge')
   #tmp.cross_validation(loss=identity_loss)
-  
+'''  
   
